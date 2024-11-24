@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import requests
 import sys
@@ -10,6 +11,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
+from datetime import datetime
 from pprint import pprint
 
 
@@ -89,17 +91,22 @@ def list_google_photos(creds):
         # Set the nextPageToken for the next request
         params['pageToken'] = next_page_token
 
-def list_google_albums(service):
+def album_id_by_name(service, name):
     nextPageToken = None
     while True:
         result = service.albums().list(pageSize=50, pageToken=nextPageToken).execute()
-        pprint(result.get('albums', []))
+        # pprint(result.get('albums', []))
+        for a in result.get('albums', []):
+            # pprint(a, stream=sys.stderr)
+            if a.get('title', '') == name:
+                return a['id']
         nextPageToken = result.get('nextPageToken', None)
         if not nextPageToken:
             break
+    return None
 
 
-def search(service, filters=None):
+def search(service, filters=None, albumId=None):
     nextPageToken = None
     print('\t'.join([
         'mimeType',
@@ -111,6 +118,7 @@ def search(service, filters=None):
     ]))
     while True:
         body = {
+            "albumId": albumId,
             "pageSize": 100,
             "pageToken": nextPageToken,
             "filters": filters
@@ -118,7 +126,7 @@ def search(service, filters=None):
         result = service.mediaItems().search(body=body).execute()
         # pprint(result.get('mediaItems', []))
         for item in result.get('mediaItems', []):
-            pprint(item, stream=sys.stderr)
+            # pprint(item, stream=sys.stderr)
             print('\t'.join([
                 item.get('mimeType', ''),
                 item.get('mediaMetadata', {}).get('creationTime', ''),
@@ -133,19 +141,37 @@ def search(service, filters=None):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Recursively list files in Google Drive.")
+    parser.add_argument('-i', '--album_id', help="Album Id")
+    parser.add_argument('-n', '--album_name', help="Album Name")
+    parser.add_argument('-d', '--date', help="Date")
+    args = parser.parse_args()
+    
     creds = authenticate()
     service = build('photoslibrary', 'v1', credentials=creds, static_discovery=False)
-    single_date_filters = {
-        "dateFilter": {
-            "dates": [
-                {
-                    "year": 2013,
-                    "month": 3,
-                    "day": 16
-                }
-            ]
+    single_date_filters = None
+    if args.date:
+        d = datetime.strptime(args.date, "%Y-%m-%d")
+        single_date_filters = {
+            "dateFilter": {
+                "dates": [
+                    {
+                        "year": d.year,
+                        "month": d.month,
+                        "day": d.day
+                    }
+                ]
+            }
         }
-    }
-    search(service, filters=single_date_filters)
+    album_id = None
+    if args.album_id:
+        album_id = album_id
+    if args.album_name:
+        if album_id:
+            raise Exception("Don't provide both album_id and album_name")
+        album_id = album_id_by_name(service, args.album_name)
+        if not album_id:
+            raise Exception(f'album_name {args.album_name} not found')
+    search(service, filters=single_date_filters, albumId=album_id)
     # list_google_albums(service)
     # list_google_photos(creds)

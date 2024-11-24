@@ -78,7 +78,7 @@ def process_item(service, item, parent_id,  visited_folders):
         size = item.get('size', '')  # Size is not available for folders
         quotaBytesUsed = item.get('quotaBytesUsed', '')
         spaces = item.get('spaces', '')
-        print(f"{spaces}\t{createdTime}\t{quotaBytesUsed}\t{size}\t{item['id']}\t{parent_id}\t{item['name']}")
+        print(f"{spaces}\t{createdTime}\t{quotaBytesUsed}\t{size}\t{item['id']}\t{parent_id}\t{item['mimeType']}\t{item['name']}")
         if item['mimeType'] == 'application/vnd.google-apps.folder':
             list_files_recursive(service, item['id'], visited_folders)
     except HttpError as sub_error:
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         print("No folder ID or name provided. Starting from the root folder.", file=sys.stderr)
         folder_id = 'root'
 
-    print('Spaces\tCreatedTime\tQuotaBytesUsed\tSize\tID\tParent Folder ID\tName')
+    print('Spaces\tCreatedTime\tQuotaBytesUsed\tSize\tID\tParent Folder ID\tmimeType\tName')
 
     print(f"Listing files starting from folder: {args.name if args.name else folder_id}", file=sys.stderr)
     list_files_recursive(service, folder_id)
